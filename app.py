@@ -218,4 +218,4 @@ elif st.session_state.step == 'draft':
         
         if st.button("最初から遊ぶ"):
             st.session_state.clear()
-            st.rerun()か
+            st.rerun()
