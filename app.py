@@ -1,3 +1,4 @@
+import streamlit as st
 import random
 import time
 
@@ -8,21 +9,21 @@ GROWTH_TYPES = ["超晩成", "晩成", "緩やか晩成", "普通", "緩やか�
 PITCH_TYPES = ["スライダー", "カットボール", "カーブ", "Dカーブ", "フォーク", "SFF", "チェンジアップ", "シンカー", "シュート", "ツーシーム"]
 
 SCHOOLS = {
-    "1": {"name": "大阪桐蔭", "甲": 5, "注": 5, "層": 5, "練": 5},
-    "2": {"name": "神村学園", "甲": 4, "注": 5, "層": 4, "練": 5},
-    "3": {"name": "早稲田実業", "甲": 3, "注": 4, "層": 3, "練": 4},
-    "4": {"name": "エナジックスポーツ学院", "甲": 2, "注": 2, "層": 2, "練": 5},
-    "5": {"name": "佐賀商業", "甲": 2, "注": 2, "層": 2, "練": 3},
-    "6": {"name": "笠岡工業", "甲": 0.1, "注": 1, "層": 0.5, "練": 1}
+    "大阪桐蔭": {"甲": 5, "注": 5, "層": 5, "練": 5},
+    "神村学園": {"甲": 4, "注": 5, "層": 4, "練": 5},
+    "早稲田実業": {"甲": 3, "注": 4, "層": 3, "練": 4},
+    "エナジックスポーツ学院": {"甲": 2, "注": 2, "層": 2, "練": 5},
+    "佐賀商業": {"甲": 2, "注": 2, "層": 2, "練": 3},
+    "笠岡工業": {"甲": 0.1, "注": 1, "層": 0.5, "練": 1}
 }
 
 PITCHER_PRACTICES = [
-    {"name": "フォームチェック", "effect": lambda p: p.add_stat("制球", 1, "球速", 1)},
-    {"name": "球速測定", "effect": lambda p: p.add_stat("球速", 2)},
-    {"name": "投げ込み", "effect": lambda p: p.add_stat("スタミナ", 1, "制球", 1)},
-    {"name": "走り込み", "effect": lambda p: p.add_stat("スタミナ", 2)},
-    {"name": "スクワット", "effect": lambda p: p.add_stat("スタミナ", 2)},
-    {"name": "変化球練習", "effect": lambda p: p.add_pitch(0.30)},
+    {"name": "フォームチェック", "req_ren": 1, "effect": lambda p: p.add_stat("制球", 1, "球速", 1)},
+    {"name": "球速測定", "req_ren": 1, "effect": lambda p: p.add_stat("球速", 2)},
+    {"name": "投げ込み", "req_ren": 1, "effect": lambda p: p.add_stat("スタミナ", 1, "制球", 1)},
+    {"name": "走り込み", "req_ren": 1, "effect": lambda p: p.add_stat("スタミナ", 2)},
+    {"name": "スクワット", "req_ren": 1, "effect": lambda p: p.add_stat("スタミナ", 2)},
+    {"name": "変化球練習", "req_ren": 1, "effect": lambda p: p.add_pitch(0.30)},
     {"name": "的あて", "req_ren": 2, "effect": lambda p: p.add_stat("制球", 3)},
     {"name": "タイヤ引き", "req_ren": 2, "effect": lambda p: p.add_stat("スタミナ", 3)},
     {"name": "変化球研究", "req_ren": 3, "effect": lambda p: p.add_pitch(0.70)},
@@ -30,20 +31,29 @@ PITCHER_PRACTICES = [
     {"name": "総合投球練習", "req_ren": 4, "effect": lambda p: p.add_stat("制球", 2, "スタミナ", 1, "球速", 1)}
 ]
 
+FIELDER_PRACTICES = [
+    {"name": "素振り", "req_ren": 1, "effect": lambda p: p.add_stat("ミート", 2)},
+    {"name": "筋トレ", "req_ren": 1, "effect": lambda p: p.add_stat("パワー", 2)},
+    {"name": "ダッシュ", "req_ren": 1, "effect": lambda p: p.add_stat("走力", 2)},
+    {"name": "ノック", "req_ren": 1, "effect": lambda p: p.add_stat("守備力", 2)},
+    {"name": "フリー打撃", "req_ren": 2, "effect": lambda p: p.add_stat("ミート", 1, "パワー", 1)},
+    {"name": "総合練習", "req_ren": 4, "effect": lambda p: p.add_stat("ミート", 1, "走力", 1, "守備力", 1)}
+]
+
 class Player:
-    def __init__(self, name, hand, pos, school):
+    def __init__(self, name, hand, pos, school_name, school_data):
         self.name = name
         self.hand = hand
         self.is_pitcher = (pos == "投手")
         self.pos = pos
-        self.school = school
+        self.school_name = school_name
+        self.school = school_data
         self.growth = random.choice(GROWTH_TYPES)
         self.coach_eval = 0
         self.scout_eval = 0
         self.salary = 0
         self.lifetime_salary = 0
         
-        # 投手ステータス
         self.speed = random.randint(105, 140)
         self.control = random.randint(15, 50)
         self.stamina = random.randint(20, 40)
@@ -54,7 +64,6 @@ class Player:
                 ptype = random.choice([p for p in PITCH_TYPES if p not in self.pitches])
                 self.pitches[ptype] = random.randint(1, 3)
                 
-        # 野手ステータス
         self.meet = random.randint(15, 45)
         self.power = random.randint(10, 55)
         self.run = random.randint(20, 55)
@@ -68,16 +77,15 @@ class Player:
         else:
             return int((self.meet + self.power + self.run + self.defense) / 4)
 
-    def add_stat(self, stat1, val1, stat2=None, val2=0):
-        if stat1 == "球速": self.speed += val1
-        elif stat1 == "制球": self.control += val1
-        elif stat1 == "スタミナ": self.stamina += val1
-        elif stat1 == "ミート": self.meet += val1
-        elif stat1 == "パワー": self.power += val1
-        
-        if stat2 == "球速": self.speed += val2
-        elif stat2 == "制球": self.control += val2
-        elif stat2 == "スタミナ": self.stamina += val2
+    def add_stat(self, stat1, val1, stat2=None, val2=0, stat3=None, val3=0):
+        for stat, val in [(stat1, val1), (stat2, val2), (stat3, val3)]:
+            if stat == "球速": self.speed += val
+            elif stat == "制球": self.control += val
+            elif stat == "スタミナ": self.stamina += val
+            elif stat == "ミート": self.meet += val
+            elif stat == "パワー": self.power += val
+            elif stat == "走力": self.run += val
+            elif stat == "守備力": self.defense += val
 
     def add_pitch(self, prob):
         if self.pitches and random.random() < prob:
@@ -91,37 +99,16 @@ class Player:
         if available and random.random() < prob:
             self.pitches[random.choice(available)] = 1
 
-def print_header(player, year, season, age):
-    print("\n" + "ー"*20)
-    print(f"⚾BASEBALL LIFE  年俸{player.salary}円")
-    print(f"           生涯{player.lifetime_salary}円")
-    print(f"高校{year}年生 {season}")
-    print(f"{player.name}")
-    print(f"{age}歳│{player.pos}│{player.school['name']}  [能力OVR値: {player.ovr}]")
-    
-    if player.is_pitcher:
-        print(f"球速   {player.speed}km/h")
-        print(f"制球   {player.control}")
-        print(f"スタミナ {player.stamina}")
-        for i, (ptype, level) in enumerate(player.pitches.items(), 1):
-            print(f"変化球{i}  {ptype} Lv{level}")
-    else:
-        print(f"ミート  {player.meet}")
-        print(f"パワー  {player.power}")
-        print(f"走力   {player.run}")
-        print(f"守備力  {player.defense}")
-    print("ー"*20)
-
 def trigger_event(player):
+    msgs = []
     r = random.random()
     if r < 0.2:
-        print("(イベント) 練習が上手く行った！能力が2倍成長した！")
+        msgs.append("✨ **練習が上手く行った！能力が2倍成長した！**")
         player.add_stat("スタミナ", 2) if player.is_pitcher else player.add_stat("パワー", 2)
     elif r < 0.4:
-        print("(イベント) 練習試合で活躍した！監督の評価が上がった。")
+        msgs.append("👍 **練習試合で活躍した！監督の評価が上がった。**")
         player.coach_eval = min(10, player.coach_eval + 1)
     
-    # スカウトイベント
     scout_chance = 0.25
     if player.school["注"] == 5: scout_chance = 0.80
     elif player.school["注"] == 4: scout_chance = 0.60
@@ -130,75 +117,105 @@ def trigger_event(player):
     
     if random.random() < scout_chance:
         if player.ovr >= 45:
-            print("(イベント) スカウトが見に来た。高く評価された！(スカウト評価↑↑)")
+            msgs.append("👀 **スカウトが見に来た。高く評価された！(スカウト評価↑↑)**")
             player.scout_eval = min(10, player.scout_eval + 2)
         elif player.ovr >= 35:
-            print("(イベント) スカウトが見に来た。注目された(スカウト評価↑)")
+            msgs.append("👀 **スカウトが見に来た。注目された(スカウト評価↑)**")
             player.scout_eval = min(10, player.scout_eval + 1)
+    return msgs
 
-def main():
-    print("⚾BASEBALL LIFE")
-    name = input("名前を入力: ")
-    
-    print("\n投打を選択:")
-    for i, h in enumerate(HANDS): print(f"{i+1}: {h}")
-    hand = HANDS[int(input("番号: ")) - 1]
-    
-    print("\nポジションを選択:")
-    for i, p in enumerate(POSITIONS): print(f"{i+1}: {p}")
-    pos = POSITIONS[int(input("番号: ")) - 1]
-    
-    print("\n進学先高校を選択:")
-    for k, v in SCHOOLS.items():
-        print(f"{k}: {v['name']} (甲☆{v['甲']}, 注☆{v['注']}, 層☆{v['層']}, 練☆{v['練']})")
-    school = SCHOOLS[input("番号: ")]
-    
-    player = Player(name, hand, pos, school)
-    print("\n[高校1年目からスタート]")
-    time.sleep(1)
-    
-    schedule = [
+# --- Streamlit UI ---
+if 'step' not in st.session_state:
+    st.session_state.step = 'creation'
+    st.session_state.player = None
+    st.session_state.turn = 0
+    st.session_state.events = []
+    st.session_state.schedule = [
         (1, "春", 15), (1, "夏", 16), (1, "秋", 16), (1, "冬", 16),
         (2, "春", 16), (2, "夏", 17), (2, "秋", 17), (2, "冬", 17),
         (3, "春", 17), (3, "夏", 18), (3, "秋", 18)
     ]
-    
-    for year, season, age in schedule:
-        print_header(player, year, season, age)
-        
-        # 練習メニュー抽出 (野手用は簡易的に代用)
-        available_pracs = [p for p in PITCHER_PRACTICES if p.get("req_ren", 1) <= school["練"]] if player.is_pitcher else [{"name": "素振り", "effect": lambda p: p.add_stat("ミート", 2)}, {"name": "筋トレ", "effect": lambda p: p.add_stat("パワー", 2)}, {"name": "ダッシュ", "effect": lambda p: p.add_stat("走力", 2)}]
-        
-        num_choices = max(2, int(school["練"]) + 1)
-        current_pracs = random.sample(available_pracs, min(num_choices, len(available_pracs)))
-        
-        print("練習の中から2つ選択")
-        for i, p in enumerate(current_pracs):
-            print(f"[{i+1}: {p['name']}]", end="  ")
-        print()
-        
-        c1 = int(input("1つ目の練習番号: ")) - 1
-        c2 = int(input("2つ目の練習番号: ")) - 1
-        
-        current_pracs[c1]["effect"](player)
-        current_pracs[c2]["effect"](player)
-        
-        print("\n練習実行中...")
-        time.sleep(1)
-        trigger_event(player)
-        input("Enterキーで次の季節へ...\n")
-        
-    print_header(player, 3, "秋", 18)
-    print("高校生活終了。進路希望を選択してください。")
-    print("1: プロ志望届  2: 大学進学  3: 社会人野球  4: 独立リーグ  5: アメリカの大学進学")
-    choice = input("番号: ")
-    
-    if choice == "1" and player.scout_eval >= 5 and player.ovr >= 40:
-        print("\n🎉ドラフト指名されました！プロ野球選手としてのキャリアがスタートします！")
-    elif choice == "1":
-        print("\n惜しくも指名漏れ...。次のステージでプロを目指しましょう。")
-    else:
-        print("\n新たな道へ進みます。BASEBALL LIFEは続く...")
 
-if __name__ == "__main__":
-    main()
+st.title("⚾ BASEBALL LIFE")
+
+if st.session_state.step == 'creation':
+    st.subheader("選手作成")
+    name = st.text_input("名前", "野球 太郎")
+    hand = st.selectbox("投打", HANDS)
+    pos = st.selectbox("ポジション", POSITIONS)
+    school = st.selectbox("進学先高校", list(SCHOOLS.keys()))
+    
+    if st.button("高校1年目からスタート"):
+        st.session_state.player = Player(name, hand, pos, school, SCHOOLS[school])
+        st.session_state.step = 'playing'
+        st.rerun()
+
+elif st.session_state.step == 'playing':
+    p = st.session_state.player
+    year, season, age = st.session_state.schedule[st.session_state.turn]
+    
+    st.markdown("---")
+    st.markdown(f"### 高校{year}年生 {season} ({age}歳)")
+    st.write(f"**{p.name}** │ {p.pos} │ {p.school_name} │ **OVR: {p.ovr}**")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if p.is_pitcher:
+            st.write(f"球速: {p.speed} km/h")
+            st.write(f"制球: {p.control}")
+            st.write(f"スタミナ: {p.stamina}")
+        else:
+            st.write(f"ミート: {p.meet}")
+            st.write(f"パワー: {p.power}")
+            st.write(f"走力: {p.run}")
+            st.write(f"守備力: {p.defense}")
+    with col2:
+        if p.is_pitcher:
+            for i, (ptype, level) in enumerate(p.pitches.items(), 1):
+                st.write(f"変化球{i}: {ptype} Lv{level}")
+                
+    if st.session_state.events:
+        st.info("\n".join(st.session_state.events))
+        st.session_state.events = []
+
+    st.markdown("---")
+    st.subheader("練習メニュー選択 (2つまで)")
+    
+    prac_list = PITCHER_PRACTICES if p.is_pitcher else FIELDER_PRACTICES
+    available = [pr for pr in prac_list if pr["req_ren"] <= p.school["練"]]
+    prac_names = [pr["name"] for pr in available]
+    
+    selected = st.multiselect("練習を選択してください", prac_names, max_selections=2)
+    
+    if st.button("練習実行＆次の季節へ"):
+        if len(selected) != 2:
+            st.warning("練習を2つ選んでください！")
+        else:
+            for s_name in selected:
+                practice = next(pr for pr in available if pr["name"] == s_name)
+                practice["effect"](p)
+            
+            st.session_state.events = trigger_event(p)
+            st.session_state.turn += 1
+            
+            if st.session_state.turn >= len(st.session_state.schedule):
+                st.session_state.step = 'draft'
+            st.rerun()
+
+elif st.session_state.step == 'draft':
+    p = st.session_state.player
+    st.header("🌸 高校生活終了")
+    st.write(f"最終OVR: {p.ovr} / スカウト評価: {p.scout_eval}")
+    
+    choice = st.selectbox("希望進路", ["プロ志望届", "大学進学", "社会人野球", "独立リーグ", "アメリカの大学進学"])
+    if st.button("運命の選択へ"):
+        if choice == "プロ志望届" and p.scout_eval >= 5 and p.ovr >= 40:
+            st.success("🎉 **ドラフト指名されました！プロ野球選手としてのキャリアがスタートします！**")
+        elif choice == "プロ志望届":
+            st.error("💦 惜しくも指名漏れ...。次のステージでプロを目指しましょう。")
+        else:
+            st.info(f"✨ {choice}へ進みます。BASEBALL LIFEは続く...")
+        
+        if st.button("最初から遊ぶ"):
+            st.session_state.clear()
+            st.rerun()か
