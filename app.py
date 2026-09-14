@@ -121,7 +121,7 @@ class Player:
         if available and random.random() < prob:
             self.pitches[random.choice(available)] = 1
 
-def trigger_events(player, season):
+def trigger_events(player, year, season):
     msgs = []
     
     # 1. 通常イベント（練習・監督）
@@ -158,21 +158,22 @@ def trigger_events(player, season):
         else:
             msgs.append("👀 **スカウトが見に来たが、まだ実力不足で目立ったアピールはできなかった。**")
 
-    # 3. スカウト面談・調査書イベント
-    invest_prob = 0
-    if 3 <= player.scout_eval <= 5: invest_prob = 0.25
-    elif 6 <= player.scout_eval <= 7: invest_prob = 0.50
-    elif player.scout_eval >= 8: invest_prob = 1.0
+    # 3. スカウト面談・調査書イベント (3年生限定)
+    if year == 3:
+        invest_prob = 0
+        if 3 <= player.scout_eval <= 5: invest_prob = 0.25
+        elif 6 <= player.scout_eval <= 7: invest_prob = 0.50
+        elif player.scout_eval >= 8: invest_prob = 1.0
 
-    if invest_prob > 0 and random.random() < invest_prob:
-        available_teams = [t for t in PRO_TEAMS if t not in player.investigated_teams]
-        if available_teams:
-            num_teams = random.randint(1, 3) if player.scout_eval >= 8 else 1
-            num_teams = min(num_teams, len(available_teams))
-            
-            teams = random.sample(available_teams, num_teams)
-            player.investigated_teams.extend(teams)
-            msgs.append(f"✉️ **スカウトと面談をした。{ '、'.join(teams) }から調査書を受け取った。**")
+        if invest_prob > 0 and random.random() < invest_prob:
+            available_teams = [t for t in PRO_TEAMS if t not in player.investigated_teams]
+            if available_teams:
+                num_teams = random.randint(1, 3) if player.scout_eval >= 8 else 1
+                num_teams = min(num_teams, len(available_teams))
+                
+                teams = random.sample(available_teams, num_teams)
+                player.investigated_teams.extend(teams)
+                msgs.append(f"✉️ **スカウトと面談をした。{ '、'.join(teams) }から調査書を受け取った。**")
 
     # 4. 夏大会イベント
     if season == "夏":
@@ -293,8 +294,8 @@ elif st.session_state.step == 'playing':
                 practice = next(pr for pr in st.session_state.current_practices if pr["name"] == s_name)
                 practice["effect"](p)
             
-            # イベント発生
-            st.session_state.turn_results = trigger_events(p, season)
+            # イベント発生 (yearを渡すように修正)
+            st.session_state.turn_results = trigger_events(p, year, season)
             st.session_state.step = 'results'
             st.rerun()
 
