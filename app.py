@@ -142,12 +142,12 @@ def trigger_events(player, season):
     if random.random() < scout_chance:
         eval_up = 0
         if player.is_pitcher:
-            if player.ovr >= 45 or player.speed >= 147: eval_up = 2
-            elif player.ovr >= 35 or player.speed >= 142: eval_up = 1
+            if player.ovr >= 60 or player.speed >= 147: eval_up = 2
+            elif player.ovr >= 45 or player.speed >= 142: eval_up = 1
         else:
             max_stat = max(player.meet, player.power, player.run, player.defense)
-            if player.ovr >= 45 or max_stat >= 65: eval_up = 2
-            elif player.ovr >= 35 or max_stat >= 50: eval_up = 1
+            if player.ovr >= 60 or max_stat >= 65: eval_up = 2
+            elif player.ovr >= 45 or max_stat >= 50: eval_up = 1
 
         if eval_up == 2:
             msgs.append("👀 **スカウトが見に来た。「高く評価された」(スカウト評価2段階上昇)**")
@@ -155,6 +155,8 @@ def trigger_events(player, season):
         elif eval_up == 1:
             msgs.append("👀 **スカウトが見に来た。「注目された」(スカウト評価1段階上昇)**")
             player.scout_eval = min(10, player.scout_eval + 1)
+        else:
+            msgs.append("👀 **スカウトが見に来たが、まだ実力不足で目立ったアピールはできなかった。**")
 
     # 3. スカウト面談・調査書イベント
     invest_prob = 0
