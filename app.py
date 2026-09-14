@@ -58,6 +58,7 @@ class Player:
         self.scout_eval = 0
         self.salary = 0
         self.lifetime_salary = 0
+        self.investigated_teams = [] # 調査書を受け取った球団リスト
         
         # 初期能力
         self.speed = random.randint(105, 140)
@@ -78,8 +79,23 @@ class Player:
     @property
     def ovr(self):
         if self.is_pitcher:
-            pitch_val = sum(self.pitches.values()) * 10
-            return int((self.speed * 0.5 + self.control + self.stamina + pitch_val) / 4)
+            # 球速のOVR換算
+            if self.speed <= 150:
+                speed_val = 55 + (self.speed - 145)
+            else:
+                speed_val = 60 + (self.speed - 150) * 2
+                
+            # 変化球のOVR換算
+            total_pitch = sum(self.pitches.values())
+            if total_pitch == 0: pitch_val = 0
+            elif total_pitch == 1: pitch_val = 5
+            elif total_pitch == 2: pitch_val = 20
+            elif total_pitch == 3: pitch_val = 25
+            elif total_pitch == 4: pitch_val = 40
+            elif total_pitch == 5: pitch_val = 50
+            else: pitch_val = 50 + (total_pitch - 5) * 5
+
+            return int((self.control + self.stamina + speed_val + pitch_val) / 4)
         else:
             return int((self.meet + self.power + self.run + self.defense) / 4)
 
@@ -147,9 +163,14 @@ def trigger_events(player, season):
     elif player.scout_eval >= 8: invest_prob = 1.0
 
     if invest_prob > 0 and random.random() < invest_prob:
-        num_teams = random.randint(1, 3) if player.scout_eval >= 8 else 1
-        teams = random.sample(PRO_TEAMS, num_teams)
-        msgs.append(f"✉️ **スカウトと面談をした。{ '、'.join(teams) }から調査書を受け取った。**")
+        available_teams = [t for t in PRO_TEAMS if t not in player.investigated_teams]
+        if available_teams:
+            num_teams = random.randint(1, 3) if player.scout_eval >= 8 else 1
+            num_teams = min(num_teams, len(available_teams))
+            
+            teams = random.sample(available_teams, num_teams)
+            player.investigated_teams.extend(teams)
+            msgs.append(f"✉️ **スカウトと面談をした。{ '、'.join(teams) }から調査書を受け取った。**")
 
     # 4. 夏大会イベント
     if season == "夏":
@@ -302,6 +323,8 @@ elif st.session_state.step == 'draft':
     st.header("🌸 高校３年生 秋")
     st.write(f"**{p.name}** │ 18歳 │ {p.pos} │ {p.school_name}")
     st.write(f"最終 能力OVR値: **{p.ovr}** / スカウト評価: **{p.scout_eval}**")
+    if len(p.investigated_teams) > 0:
+        st.write(f"✉️ **調査書獲得球団:** {', '.join(p.investigated_teams)}")
     
     choice = st.selectbox("希望進路", ["", "プロ志望届", "大学進学", "社会人野球", "独立リーグ", "アメリカの大学進学"])
     
@@ -311,10 +334,10 @@ elif st.session_state.step == 'draft':
             if choice == "プロ志望届":
                 # OVRとスカウト評価による独自ドラフト判定
                 if p.scout_eval >= 6 and p.ovr >= 40:
-                    team = random.choice(PRO_TEAMS)
+                    team = random.choice(p.investigated_teams) if p.investigated_teams else random.choice(PRO_TEAMS)
                     st.success(f"🎉 **ドラフト指名！ {team}から指名を受けました！** プロ野球選手としてのキャリアがスタートします！")
                 elif p.scout_eval >= 4 and p.ovr >= 35 and random.random() < 0.3:
-                    team = random.choice(PRO_TEAMS)
+                    team = random.choice(p.investigated_teams) if p.investigated_teams else random.choice(PRO_TEAMS)
                     st.success(f"🎉 **ドラフト下位指名！ {team}から指名を受けました！** プロの世界に飛び込みます！")
                 else:
                     st.error("💦 惜しくも指名漏れ...。次のステージでプロを目指しましょう。")
